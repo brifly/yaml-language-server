@@ -29,10 +29,10 @@ export class ValidationHandler {
 
   validate(textDocument: TextDocument): void {
     this.cleanPendingValidation(textDocument);
-    this.yamlSettings.pendingValidationRequests[textDocument.uri] = setTimeout(() => {
+    this.yamlSettings.pendingValidationRequests[textDocument.uri] = (setTimeout(() => {
       delete this.yamlSettings.pendingValidationRequests[textDocument.uri];
       this.validateTextDocument(textDocument);
-    }, this.yamlSettings.validationDelayMs);
+    }, this.yamlSettings.validationDelayMs) as unknown) as NodeJS.Timeout;
   }
 
   private cleanPendingValidation(textDocument: TextDocument): void {

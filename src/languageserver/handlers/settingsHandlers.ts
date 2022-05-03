@@ -8,7 +8,7 @@ import { convertErrorToTelemetryMsg } from '../../languageservice/utils/objects'
 import { isRelativePath, relativeToAbsolutePath } from '../../languageservice/utils/paths';
 import { checkSchemaURI, JSON_SCHEMASTORE_URL, KUBERNETES_SCHEMA_URL } from '../../languageservice/utils/schemaUrls';
 import { LanguageService, LanguageSettings, SchemaPriority } from '../../languageservice/yamlLanguageService';
-import { SchemaSelectionRequests } from '../../requestTypes';
+import { SchemaSelectionRequests, VSCodeContentRequest } from '../../requestTypes';
 import { Settings, SettingsState } from '../../yamlSettings';
 import { Telemetry } from '../telemetry';
 import { ValidationHandler } from './validationHandlers';
@@ -56,7 +56,38 @@ export class SettingsHandler {
     await this.setConfiguration(settings);
   }
 
-  private async setConfiguration(settings: Settings): Promise<void> {
+  private async mergeRemoteSettings(localSettings: Settings, settingsUri: string): Promise<Settings> {
+    return this.connection
+      .sendRequest(VSCodeContentRequest.type, settingsUri)
+      .then((responseText) => {
+        const remoteSettings = JSON.parse(responseText) as Settings;
+        return this.mergeSettings(remoteSettings, localSettings);
+      })
+      .catch(() => {
+        return localSettings;
+      });
+  }
+
+  private mergeSettings(remote: Settings, local: Settings): Settings {
+    return {
+      ...local,
+      yaml: {
+        ...local.yaml,
+        completion: local.yaml?.completion ?? remote.yaml?.completion,
+        customTags: [...(remote.yaml?.customTags ?? []), ...(local.yaml?.customTags ?? [])],
+        schemas: { ...(remote.yaml?.schemas ?? {}), ...(local.yaml?.schemas ?? {}) },
+      },
+      yamlEditor: { ...(remote.yamlEditor ?? {}), ...local.yamlEditor },
+      vscodeEditor: { ...(remote.vscodeEditor ?? {}), ...local.vscodeEditor },
+    };
+  }
+
+  private async setConfiguration(localSettings: Settings): Promise<void> {
+    const settings =
+      localSettings.yaml.settingsServer?.enable && localSettings.yaml.settingsServer?.url
+        ? await this.mergeRemoteSettings(localSettings, localSettings.yaml.settingsServer?.url)
+        : localSettings;
+
     configureHttpRequests(settings.http && settings.http.proxy, settings.http && settings.http.proxyStrictSSL);
 
     this.yamlSettings.specificValidatorPaths = [];
@@ -73,6 +104,7 @@ export class SettingsHandler {
       if (Object.prototype.hasOwnProperty.call(settings.yaml, 'completion')) {
         this.yamlSettings.yamlShouldCompletion = settings.yaml.completion;
       }
+
       this.yamlSettings.customTags = settings.yaml.customTags ? settings.yaml.customTags : [];
 
       this.yamlSettings.maxItemsComputed = Math.trunc(Math.max(0, Number(settings.yaml.maxItemsComputed))) || 5000;

@@ -252,7 +252,7 @@ export class LanguageHandlers {
         warning.timeout.refresh();
       } else {
         warning = { features: { [name]: name } };
-        warning.timeout = setTimeout(() => {
+        warning.timeout = (setTimeout(() => {
           this.connection.sendNotification(
             ResultLimitReachedNotification.type,
             `${path.basename(uri)}: For performance reasons, ${Object.keys(warning.features).join(
@@ -260,7 +260,7 @@ export class LanguageHandlers {
             )} have been limited to ${resultLimit} items.`
           );
           warning.timeout = undefined;
-        }, 2000);
+        }, 2000) as unknown) as NodeJS.Timeout;
         this.pendingLimitExceededWarnings[uri] = warning;
       }
     };

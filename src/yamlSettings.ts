@@ -10,8 +10,12 @@ import { YamlVersion } from './languageservice/parser/yamlParser07';
 // Client settings interface to grab settings relevant for the language server
 export interface Settings {
   yaml: {
+    settingsServer: {
+      enable: boolean;
+      url: string;
+    };
     format: CustomFormatterOptions;
-    schemas: JSONSchemaSettings[];
+    schemas: Record<string, string | string[] | JSONSchema>;
     validate: boolean;
     hover: boolean;
     completion: boolean;
@@ -42,15 +46,9 @@ export interface Settings {
   };
 }
 
-export interface JSONSchemaSettings {
-  fileMatch?: string[];
-  url?: string;
-  schema?: JSONSchema;
-}
-
 // This class is responsible for handling all the settings
 export class SettingsState {
-  yamlConfigurationSettings: JSONSchemaSettings[] = undefined;
+  yamlConfigurationSettings: Record<string, string | string[] | JSONSchema> = undefined;
   schemaAssociations: ISchemaAssociations | SchemaConfiguration[] | undefined = undefined;
   formatterRegistration: Thenable<Disposable> = null;
   specificValidatorPaths = [];
